@@ -10,6 +10,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.AI.ChatCompletion;
+using Microsoft.SemanticKernel.AI.Embeddings.VectorOperations;
 using Microsoft.SemanticKernel.Connectors.Memory.AzureCognitiveSearch;
 using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.TemplateEngine;
@@ -72,14 +73,13 @@ namespace CosmosMovieGuide.Services
 
         public async Task<string> GenerateCompletionAsync(string userPrompt, string  movieData)
         {
-            string systemPromptMovieAssistant = @"
-            You are an intelligent assistant for Contoso Movie FAQ. 
-            You are designed to provide helpful answers to user questions about movies using the provided JSON strings
+            string systemPromptMovieAssistant = @" 
+            Limit you responses to be based only on the movies provided and say you don't know if a question is about a movie not included. You are designed to provide answers to user questions about movies using the provided movies only
             INSTRUCTIONS
-            - In case a movie is not provided in the prompt politely refuse to answer all queries regarding it. 
-            - Never refer to a movie not provided as input to you.
+            - Refuse to answer questions about movies not provided as part of the prompt. 
+            - If a question is about a movie not provided, simply say you don't know.          
+            - Never answer questions related to movies that are not provided as part of the prompt.
             - If you're unsure of an answer, you can say ""I don't know"" or ""I'm not sure"" and recommend users search themselves.        
-            - Your response  should be complete. 
             - Format the content so that it can be printed to the Command Line";
 
             // Client used to request answers to gpt-3.5 - turbo
@@ -89,6 +89,30 @@ namespace CosmosMovieGuide.Services
 
             // add shortlisted movies as system message
             chatHistory.AddSystemMessage(movieData);
+
+            // send user promt as user message
+            chatHistory.AddUserMessage(userPrompt);
+
+            // Finally, get the response from AI
+            string answer = await chatCompletion.GenerateMessageAsync(chatHistory);
+
+
+            return answer;
+        }
+
+        public async Task<string> GenerateCompletionNonRagAsync(string userPrompt)
+        {
+            string systemPromptMovieAssistant = @" 
+            You are designed to provide answers to user questions about movies
+            INSTRUCTIONS
+            - Refuse to answer questions about movies you do not know. 
+            - If you're unsure of an answer, you can say ""I don't know"" or ""I'm not sure"" and recommend users search themselves.        
+            - Format the content so that it can be printed to the Command Line";
+
+            // Client used to request answers to gpt-3.5 - turbo
+            var chatCompletion = kernel.GetService<IChatCompletion>();
+
+            var chatHistory = chatCompletion.CreateNewChat(systemPromptMovieAssistant);
 
             // send user promt as user message
             chatHistory.AddUserMessage(userPrompt);

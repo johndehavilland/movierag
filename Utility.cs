@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using Newtonsoft.Json;
+using Spectre.Console;
 
 namespace CosmosMovieGuide
 {
@@ -17,6 +18,7 @@ namespace CosmosMovieGuide
             Directory.GetFiles(Folderpath).ToList().ForEach(f =>
                 {
                     var jsonString= System.IO.File.ReadAllText(f);
+                    AnsiConsole.MarkupLine($"[green]Parsing {f}[/]");
                     Movie movie = JsonConvert.DeserializeObject<Movie>(jsonString);
                     movie.id = movie.name.ToLower().Replace(" ","");
                     movie.embeddingStatus = false;

@@ -42,7 +42,8 @@ namespace CosmosMovieGuide
             const string cosmosUpload = "1.\tUpload movie(s) to Cosmos DB";
             const string vectorize = "2.\tVectorize the movies(s) and store it in Cosmos DB";
             const string search = "3.\tAsk AI Assistant questions about movies";
-            const string exit = "4.\tExit this Application";
+            const string searchnonrag = "4.\tAsk AI Assistant questions about movies without RAG";
+            const string exit = "5.\tExit this Application";
 
 
             while (true)
@@ -54,7 +55,7 @@ namespace CosmosMovieGuide
                           .PageSize(10)
                           .MoreChoicesText("[grey](Move up and down to reveal more options)[/]")
                           .AddChoices(new[] {
-                            cosmosUpload,vectorize ,search, exit
+                            cosmosUpload,vectorize ,search, searchnonrag, exit
                           }));
 
 
@@ -68,6 +69,9 @@ namespace CosmosMovieGuide
                         break;
                     case search:
                         PerformSearch(config);
+                        break;
+                    case searchnonrag:
+                        PerformSearchNonRag(config);
                         break;
                     case exit:
                         return;                        
@@ -191,7 +195,7 @@ namespace CosmosMovieGuide
                    ctx.Status("Retriving movie(s) from Cosmos DB (RAG pattern)..");
                    var retrivedDocs=cosmosService.GetMoviesAsync(ids).GetAwaiter().GetResult();
 
-                   ctx.Status($"Priocessing {retrivedDocs.Count} to generate Chat Response using OpenAI Service..");
+                   ctx.Status($"Processing {retrivedDocs.Count} to generate Chat Response using OpenAI Service..");
 
                    string retrivedMovieNames = string.Empty;
                    
@@ -201,7 +205,7 @@ namespace CosmosMovieGuide
                    }
 
                    ctx.Status($"Processing '{retrivedMovieNames}' to generate Completion using OpenAI Service..");
-
+                    
                    chatCompletion = skService.GenerateCompletionAsync(userQuery, JsonConvert.SerializeObject(retrivedDocs)).GetAwaiter().GetResult();
 
    
@@ -216,6 +220,47 @@ namespace CosmosMovieGuide
             Console.WriteLine("");
 
         }
+
+        private static void PerformSearchNonRag(IConfiguration config)
+        {
+            
+            string chatCompletion=string.Empty;
+
+            string userQuery = Console.Prompt(
+                new TextPrompt<string>("Type the movie name or your question, hit enter when ready.")
+                    .PromptStyle("teal")
+            );
+
+            
+            AnsiConsole.Status()
+               .Start("Processing...", ctx =>
+               {
+                   ctx.Spinner(Spinner.Known.Star);
+                   ctx.SpinnerStyle(Style.Parse("green"));
+
+                   if (skService == null)
+                   {
+                       ctx.Status("Initializing Semantic Kernel Service..");
+                       skService = initSKService(config);
+                   }
+
+                   ctx.Status("Performing Vector Search..");
+                    
+                   chatCompletion = skService.GenerateCompletionNonRagAsync(userQuery).GetAwaiter().GetResult();
+
+   
+               });
+
+            Console.WriteLine("");
+            Console.Write(new Rule($"[silver]AI Assistant Response[/]") { Justification = Justify.Center });
+            AnsiConsole.MarkupLine(chatCompletion);
+            Console.WriteLine("");
+            Console.WriteLine("");
+            Console.Write(new Rule($"[yellow]****[/]") { Justification = Justify.Center });
+            Console.WriteLine("");
+
+        }
+
 
         private static void GenerateEmbeddings(IConfiguration config)
         {

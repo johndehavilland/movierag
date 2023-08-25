@@ -15,7 +15,6 @@ namespace CosmosMovieGuide
         public string id { get; set; }
         public string name { get; set; }
         public string synopsis { get; set; }
-
         public bool embeddingStatus { get; set; }
     }     
 
